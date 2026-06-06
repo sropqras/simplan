@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Real-time Tasks</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Real-time<span>Tasks</span></div>
+    <div class="user">
+      <img id="avatar" alt="" />
+      <div>
+        <div class="name" id="name">…</div>
+        <div class="email" id="email"></div>
+      </div>
+      <form action="/auth/logout" method="post">
+        <button class="logout" type="submit">LOG OUT</button>
+      </form>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- ===== Events view ===== -->
+    <section id="view-events">
+      <div class="eyebrow">// events</div>
+      <div class="row-between">
+        <h1 class="headline">Your events</h1>
+        <button class="btn" id="btn-new-event">+ NEW EVENT</button>
+      </div>
+      <p class="lede">Each event groups projects together. You see events you created and events containing a project you're a member of.</p>
+
+      <form id="form-event" class="card form" hidden>
+        <h3>Create event</h3>
+        <label>Name<input name="name" required maxlength="120" /></label>
+        <label>Description<textarea name="description" rows="2" maxlength="600"></textarea></label>
+        <div class="row">
+          <button type="submit" class="btn primary">Create</button>
+          <button type="button" class="btn ghost" id="cancel-event">Cancel</button>
+        </div>
+        <div class="form-error" hidden></div>
+      </form>
+
+      <div id="events-list" class="grid"></div>
+      <div id="events-empty" class="empty" hidden>No events yet. Create one to get started.</div>
+    </section>
+
+    <!-- ===== Event drill-down ===== -->
+    <section id="view-event" hidden>
+      <button class="back" id="back-to-events">← all events</button>
+      <div class="eyebrow">// event</div>
+      <div class="row-between">
+        <h1 class="headline" id="event-name">…</h1>
+        <button class="btn" id="btn-new-project">+ NEW PROJECT</button>
+      </div>
+      <p class="lede" id="event-description"></p>
+
+      <form id="form-project" class="card form" hidden>
+        <h3>Create project</h3>
+        <label>Name<input name="name" required maxlength="120" /></label>
+        <label>Description<textarea name="description" rows="2" maxlength="600"></textarea></label>
+        <div class="row">
+          <button type="submit" class="btn primary">Create</button>
+          <button type="button" class="btn ghost" id="cancel-project">Cancel</button>
+        </div>
+        <div class="form-error" hidden></div>
+      </form>
+
+      <h2 class="section-h">Projects</h2>
+      <div id="projects-list" class="grid"></div>
+      <div id="projects-empty" class="empty" hidden>No projects in this event yet.</div>
+    </section>
+
+    <!-- ===== Project drill-down (members) ===== -->
+    <section id="view-project" hidden>
+      <button class="back" id="back-to-event">← back to event</button>
+      <div class="eyebrow">// project</div>
+      <div class="row-between">
+        <h1 class="headline" id="project-name">…</h1>
+        <span class="role-badge" id="my-role"></span>
+      </div>
+      <p class="lede" id="project-description"></p>
+
+      <h2 class="section-h">Members</h2>
+      <div id="members-list" class="member-list"></div>
+
+      <form id="form-member" class="card form" hidden>
+        <h3>Add member</h3>
+        <label>Find user
+          <input id="user-search" placeholder="name or email" autocomplete="off" />
+        </label>
+        <div id="user-results" class="user-results"></div>
+        <label>Role
+          <select name="role">
+            <option value="member">member</option>
+            <option value="owner">owner</option>
+          </select>
+        </label>
+        <div class="form-error" hidden></div>
+      </form>
+    </section>
+  </main>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
