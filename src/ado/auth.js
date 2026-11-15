@@ -84,7 +84,7 @@ async function loadAdoProject(ado, projectId) {
   let project;
   try {
     const p = await ado.client.getProject(projectId);
-    project = { id: p.id, name: p.name };
+    project = { id: p.id, name: p.name, defaultTeamId: (p.defaultTeam && p.defaultTeam.id) || null };
   } catch (err) {
     // Hide existence of projects the user can't see.
     if (err.status === 404 || err.status === 403) {
@@ -110,10 +110,15 @@ async function requireAdoProject(req, res, next) {
 const PROJECT_NAMESPACE = '52d39943-cb85-4d7f-8fa8-c6baac873819';
 const PROJECT_GENERIC_WRITE = 2;
 
+// True if the caller holds "Edit project-level information" on the project.
+async function isProjectAdmin(ado) {
+  const token = `$PROJECT:vstfs:///Classification/TeamProject/${ado.project.id}`;
+  return ado.client.hasPermission(PROJECT_NAMESPACE, PROJECT_GENERIC_WRITE, token);
+}
+
 async function requireAdoProjectAdmin(req, res, next) {
   try {
-    const token = `$PROJECT:vstfs:///Classification/TeamProject/${req.ado.project.id}`;
-    const ok = await req.ado.client.hasPermission(PROJECT_NAMESPACE, PROJECT_GENERIC_WRITE, token);
+    const ok = await isProjectAdmin(req.ado);
     if (!ok) return fail(res, 403, 'Project administrator permission required');
     return next();
   } catch (err) {
@@ -127,6 +132,7 @@ module.exports = {
   loadAdoProject,
   requireAdoProject,
   requireAdoProjectAdmin,
+  isProjectAdmin,
   clearAuthCaches,
   PROJECT_NAMESPACE,
 };

@@ -27,8 +27,10 @@ inside `try`. The real Google OAuth callback is still untested.
 simplan is also being built as a **private Azure DevOps extension** where tickets are ADO work items,
 AI runs on Azure AI Foundry, and config comes from `.simplan.yml` in the project's repo plus a settings page.
 **Read `docs/azure-devops.md` first** — it has the milestone table, auth model, config model and runbook.
-Milestones 1–2 (auth bridge + config) are done and tested against a fake ADO; milestone 3 (enhanced board) is next.
-Milestone 0 (Azure resources, Marketplace publisher) needs the account owner.
+Milestones 1–7 (auth bridge, config, enhanced board, chat + @ai, AI tickets, code links, CI/release) are
+implemented and tested against fake ADO + fake Foundry servers (2026-11-15). Nothing has run in a real org yet:
+milestone 0 (Azure resources, Marketplace publisher) needs the account owner, then follow the
+"First run in a real org" checklist in `docs/azure-devops.md`.
 
 ADO-mode rules (in addition to section 3):
 - Code lives in `src/ado/` (CommonJS) and `extension/` (browser ES modules bundled by esbuild — the only
@@ -161,15 +163,29 @@ src/ado/appToken.js               verify SDK.getAppToken() JWT (HS256, ADO_EXTEN
 src/ado/auth.js                   requireAdoUser / requireAdoProject / requireAdoProjectAdmin
 src/ado/client.js                 ADO REST client acting as the user (org validated, api 7.1)
 src/ado/config.js                 schema, .simplan.yml parse, merge default<-repo<-tool, toYaml
-src/ado/routes.js                 /ado/api/whoami, /projects/:id/config (GET/PUT), /config/commit
+src/ado/routes.js                 /ado/api router: whoami + config routes; registers the feature modules below
+src/ado/projectConfig.js          loadEffectiveConfig(ado) shared by all feature routes
+src/ado/board.js                  M3 board, work item PATCH/POST, live (service hooks) on/off
+src/ado/hooks.js                  /ado/hooks/workitems service-hook receiver -> socket ping
+src/ado/realtime.js               Socket.IO /ado namespace: token auth, project rooms, presence, broadcast()
+src/ado/chat.js                   M4 chat messages + async @ai answers (rate-limited)
+src/ado/foundry.js                Foundry /openai/v1 chat-completions client (key or managed identity), tool loop
+src/ado/repoContext.js            allow-listed repo file access for the AI (globs, deny-list, size caps)
+src/ado/proposals.js              M5 chat -> AI proposals -> approve (row lock) -> work item
+src/ado/code.js                   M6 branch + artifact link, PR status, chat origin, AI summary
 src/ado/cors.js                   CORS for the extension iframe origin (/ado only)
 
-extension/vss-extension.json      manifest: Board hub + Project settings hub, scopes
-extension/build.js                esbuild -> dist/ (SIMPLAN_API_URL baked in)
-extension/src/{board,settings}/   pages; extension/src/common/backend.js = SDK init + api()
+extension/vss-extension.json      manifest: Board + Chat hubs, work item group, menu action, settings hub
+extension/build.js                esbuild -> dist/ (SIMPLAN_API_URL baked in; no sourcemaps in production)
+extension/src/{board,chat,workitem,action,settings}/   pages
+extension/src/common/backend.js   SDK init, api(), connectLive() socket, navigation helpers, h()/mount()
+.github/workflows/ci.yml          tests (Postgres service) + package .vsix
+.github/workflows/release.yml     tag/manual: deploy App Service + publish private extension
 
 test/*.test.js                    node:test; npm test (integration needs TEST_DATABASE_URL)
 test/helpers/fakeAdo.js           fake Azure DevOps REST server for tests
+test/helpers/fakeFoundry.js       fake Foundry chat-completions server (scripted replies)
+test/helpers/stack.js             starts server + Postgres schema + fakes for integration tests
 docs/azure-devops.md              ADO extension runbook + milestone status
 
 public/css/styles.css             dark "ops command center" theme + Phase 2 styles

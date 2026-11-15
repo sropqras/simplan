@@ -6,32 +6,107 @@
   "name": "simplan",
   "description": "Live board, project chat and AI ticket creation (Azure AI Foundry) for Azure DevOps projects, configured from the project's repo.",
   "public": false,
-  "categories": ["Azure Boards"],
-  "targets": [{ "id": "Microsoft.VisualStudio.Services" }],
-  "scopes": ["vso.work_write", "vso.code_write", "vso.project", "vso.hooks_write"],
-  "icons": { "default": "static/logo.png" },
-  "content": { "details": { "path": "README.md" } },
+  "categories": [
+    "Azure Boards"
+  ],
+  "targets": [
+    {
+      "id": "Microsoft.VisualStudio.Services"
+    }
+  ],
+  "scopes": [
+    "vso.work_write",
+    "vso.code_write",
+    "vso.project",
+    "vso.hooks_write"
+  ],
+  "icons": {
+    "default": "static/logo.png"
+  },
+  "content": {
+    "details": {
+      "path": "README.md"
+    }
+  },
   "files": [
-    { "path": "dist", "addressable": true },
-    { "path": "static", "addressable": true }
+    {
+      "path": "dist",
+      "addressable": true
+    },
+    {
+      "path": "static",
+      "addressable": true
+    }
   ],
   "contributions": [
     {
       "id": "simplan-board-hub",
       "type": "ms.vss-web.hub",
       "description": "simplan board",
-      "targets": ["ms.vss-work-web.work-hub-group"],
+      "targets": [
+        "ms.vss-work-web.work-hub-group"
+      ],
       "properties": {
         "name": "simplan Board",
         "uri": "dist/board/board.html",
-        "icon": { "light": "static/logo.png", "dark": "static/logo.png" }
+        "icon": {
+          "light": "static/logo.png",
+          "dark": "static/logo.png"
+        }
+      }
+    },
+    {
+      "id": "simplan-chat-hub",
+      "type": "ms.vss-web.hub",
+      "description": "simplan project chat with AI",
+      "targets": [
+        "ms.vss-work-web.work-hub-group"
+      ],
+      "properties": {
+        "name": "simplan Chat",
+        "uri": "dist/chat/chat.html",
+        "icon": {
+          "light": "static/logo.png",
+          "dark": "static/logo.png"
+        }
+      }
+    },
+    {
+      "id": "simplan-workitem-group",
+      "type": "ms.vss-work-web.work-item-form-group",
+      "description": "simplan code links, chat origin and AI summary",
+      "targets": [
+        "ms.vss-work-web.work-item-form"
+      ],
+      "properties": {
+        "name": "simplan",
+        "uri": "dist/workitem/workitem.html",
+        "height": 260
+      }
+    },
+    {
+      "id": "simplan-ask-action",
+      "type": "ms.vss-web.action",
+      "description": "Ask simplan AI about this work item",
+      "targets": [
+        "ms.vss-work-web.work-item-context-menu",
+        "ms.vss-work-web.work-item-toolbar-menu"
+      ],
+      "properties": {
+        "text": "Ask simplan AI",
+        "title": "Discuss this work item with the simplan AI",
+        "icon": "static/logo.png",
+        "uri": "dist/action/action.html",
+        "registeredObjectId": "simplan-ask-action"
       }
     },
     {
       "id": "simplan-settings-hub",
       "type": "ms.vss-web.hub",
       "description": "simplan project settings",
-      "targets": ["ms.vss-web.project-admin-hub-group"],
+      "targets": [
+        "ms.vss-web.project-admin-hub-group"
+      ],
       "properties": {
         "name": "simplan",
         "uri": "dist/settings/settings.html"

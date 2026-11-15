@@ -5,59 +5,12 @@
 
 const express = require('express');
 const { query } = require('../config/db');
-const { requireAdoUser, requireAdoProject, requireAdoProjectAdmin, PROJECT_NAMESPACE } = require('./auth');
+const { requireAdoUser, requireAdoProject, requireAdoProjectAdmin, isProjectAdmin } = require('./auth');
 const cfg = require('./config');
+const { loadOverrides, loadEffectiveConfig } = require('./projectConfig');
 
 const router = express.Router();
 router.use(requireAdoUser);
-
-// ---------- helpers ----------
-
-async function loadOverrides(org, projectId) {
-  const { rows } = await query(
-    'SELECT settings FROM ado_projects WHERE org = $1 AND project_id = $2',
-    [org.toLowerCase(), projectId]
-  );
-  return (rows[0] && rows[0].settings) || {};
-}
-
-// Builds the full config view for a project: which repo, what the repo file says,
-// the tool overrides, and the merged result with per-key sources.
-async function loadEffectiveConfig(ado) {
-  const project = ado.project;
-  const overrides = await loadOverrides(ado.org, project.id);
-
-  const repos = await ado.client.listRepos(project.id);
-  const repo = cfg.pickRepo(repos, project.name, overrides.repo);
-  const repoFile = { path: cfg.CONFIG_PATH, exists: false, errors: [] };
-  let repoValues = {};
-
-  if (!repo && overrides.repo) repoFile.errors.push(`Repository "${overrides.repo}" not found in this project`);
-  const branch = repo && cfg.branchName(repo.defaultBranch);
-  if (repo && branch) {
-    const text = await ado.client.getFileText(project.id, repo.id, cfg.CONFIG_PATH, branch);
-    if (text != null) {
-      repoFile.exists = true;
-      const parsed = cfg.parseRepoConfig(text);
-      repoValues = parsed.values;
-      repoFile.errors.push(...parsed.errors);
-    }
-  } else if (repo) {
-    repoFile.errors.push('Repository has no default branch yet (empty repo)');
-  }
-
-  const { values, sources } = cfg.mergeConfig(repoValues, overrides);
-  return {
-    project,
-    repo: repo ? { id: repo.id, name: repo.name, defaultBranch: branch, webUrl: repo.webUrl || null } : null,
-    repos: repos.map((r) => r.name).sort(),
-    repoFile,
-    repoValues,
-    overrides,
-    values,
-    sources,
-  };
-}
 
 function schemaForClient() {
   const out = {};
@@ -69,9 +22,7 @@ function schemaForClient() {
 
 async function canEditConfig(ado) {
   try {
-    return await ado.client.hasPermission(
-      PROJECT_NAMESPACE, 2, `$PROJECT:vstfs:///Classification/TeamProject/${ado.project.id}`
-    );
+    return await isProjectAdmin(ado);
   } catch {
     return false; // UI hint only; the PUT route enforces it for real
   }
@@ -163,5 +114,10 @@ router.post('/projects/:projectId/config/commit', requireAdoProject, requireAdoP
   }
 });
 
+// Feature routes (milestones 3-6) share the same auth chain.
+require('./board').register(router);
+require('./chat').register(router);
+require('./proposals').register(router);
+require('./code').register(router);
+
 module.exports = router;
-module.exports.loadEffectiveConfig = loadEffectiveConfig;

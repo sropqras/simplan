@@ -12,7 +12,9 @@ class AdoError extends Error {
   constructor(status, message, body) {
     super(message);
     // Pass through ADO's auth/permission/not-found statuses; anything else is a 502.
-    this.status = [401, 403, 404, 409].includes(status) ? status : 502;
+    // 412 = failed "test /rev" patch op (someone else changed the item) -> 409 conflict.
+    // 400 from ADO is usually a validation error on our input (e.g. invalid state) -> 400.
+    this.status = status === 412 ? 409 : [400, 401, 403, 404, 409].includes(status) ? status : 502;
     this.adoStatus = status;
     this.expose = true;
     this.body = body;
@@ -123,6 +125,112 @@ function createAdoClient({ org, token, fetchImpl = fetch, baseUrl = process.env.
           }],
         },
       });
+    },
+
+    // ---------- Work items ----------
+
+    // Runs a WIQL query; returns work item ids (ADO caps WIQL results; we cap again).
+    async wiqlIds(projectId, wiql, top = 500) {
+      const data = await call('POST', `/${enc(projectId)}/_apis/wit/wiql`, {
+        query: { $top: top },
+        body: { query: wiql },
+      });
+      return ((data && data.workItems) || []).map((w) => w.id);
+    },
+
+    // Batch-fetch work items (200 per request is the ADO limit).
+    async getWorkItems(projectId, ids, fields) {
+      const out = [];
+      for (let i = 0; i < ids.length; i += 200) {
+        const data = await call('POST', `/${enc(projectId)}/_apis/wit/workitemsbatch`, {
+          body: { ids: ids.slice(i, i + 200), fields, errorPolicy: 'omit' },
+        });
+        out.push(...((data && data.value) || []).filter(Boolean));
+      }
+      return out;
+    },
+
+    async getWorkItem(projectId, id, { relations = false } = {}) {
+      return call('GET', `/${enc(projectId)}/_apis/wit/workitems/${Number(id)}`, {
+        query: relations ? { $expand: 'relations' } : {},
+        allow404: true,
+      });
+    },
+
+    // ops = JSON-patch array, e.g. [{ op: 'add', path: '/fields/System.Title', value: 'x' }]
+    async createWorkItem(projectId, type, ops) {
+      return call('POST', `/${enc(projectId)}/_apis/wit/workitems/$${enc(type)}`, {
+        body: ops, contentType: 'application/json-patch+json',
+      });
+    },
+
+    async updateWorkItem(projectId, id, ops) {
+      return call('PATCH', `/${enc(projectId)}/_apis/wit/workitems/${Number(id)}`, {
+        body: ops, contentType: 'application/json-patch+json',
+      });
+    },
+
+    async listWorkItemTypes(projectId) {
+      const data = await call('GET', `/${enc(projectId)}/_apis/wit/workitemtypes`);
+      return ((data && data.value) || []).filter((t) => !t.isDisabled).map((t) => t.name);
+    },
+
+    async getWorkItemTypeStates(projectId, type) {
+      const data = await call('GET', `/${enc(projectId)}/_apis/wit/workitemtypes/${enc(type)}/states`);
+      return (data && data.value) || [];
+    },
+
+    async getTeamMembers(projectId, teamId) {
+      const data = await call('GET', `/_apis/projects/${enc(projectId)}/teams/${enc(teamId)}/members`, {
+        query: { $top: 500 },
+      });
+      return ((data && data.value) || []).map((m) => m.identity || m).filter(Boolean);
+    },
+
+    // ---------- Git ----------
+
+    // Full file list of a branch (paths only).
+    async listTree(projectId, repoId, branch) {
+      const data = await call('GET', `/${enc(projectId)}/_apis/git/repositories/${enc(repoId)}/items`, {
+        query: {
+          scopePath: '/',
+          recursionLevel: 'Full',
+          'versionDescriptor.version': branch,
+          'versionDescriptor.versionType': 'branch',
+        },
+      });
+      return ((data && data.value) || []).filter((i) => !i.isFolder).map((i) => i.path);
+    },
+
+    async createBranch(projectId, repoId, name, objectId) {
+      const data = await call('POST', `/${enc(projectId)}/_apis/git/repositories/${enc(repoId)}/refs`, {
+        body: [{ name: `refs/heads/${name}`, oldObjectId: '0000000000000000000000000000000000000000', newObjectId: objectId }],
+      });
+      const r = data && data.value && data.value[0];
+      if (r && r.success === false) {
+        throw new AdoError(r.updateStatus === 'failedToCreateRefAlreadyExists' ? 409 : 400,
+          `Could not create branch (${r.updateStatus || 'failed'})`);
+      }
+      return r;
+    },
+
+    async getPullRequest(projectId, prId) {
+      return call('GET', `/${enc(projectId)}/_apis/git/pullrequests/${Number(prId)}`, { allow404: true });
+    },
+
+    // ---------- Service hooks ----------
+
+    async listSubscriptions() {
+      const data = await call('GET', '/_apis/hooks/subscriptions');
+      return (data && data.value) || [];
+    },
+
+    async createSubscription(body) {
+      return call('POST', '/_apis/hooks/subscriptions', { body });
+    },
+
+    async deleteSubscription(id) {
+      return call('DELETE', `/_apis/hooks/subscriptions/${enc(id)}`, { allow404: true });
     },
 
     async createPullRequest(projectId, repoId, { sourceBranch, targetBranch, title, description }) {

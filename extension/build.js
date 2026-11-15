@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const esbuild = require('esbuild');
 
-const PAGES = ['board', 'settings'];
+const PAGES = ['board', 'chat', 'workitem', 'action', 'settings'];
 const SRC = path.join(__dirname, 'src');
 const DIST = path.join(__dirname, 'dist');
 
@@ -31,7 +31,7 @@ esbuild.buildSync({
   format: 'iife',
   target: 'es2020',
   minify: process.env.NODE_ENV === 'production',
-  sourcemap: true,
+  sourcemap: process.env.NODE_ENV !== 'production', // keep the .vsix small
   define: { __SIMPLAN_API__: JSON.stringify(apiUrl) },
   logLevel: 'warning',
 });

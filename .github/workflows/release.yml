@@ -1,0 +1,76 @@
+name: Release (Azure DevOps extension + App Service)
+
+# Manual or on version tags (v1.2.3). Needs, in the GitHub repo settings:
+#   vars.SIMPLAN_API_URL          https://<app>.azurewebsites.net
+#   vars.ADO_PUBLISHER            Marketplace publisher id
+#   vars.ADO_SHARE_WITH           space-separated ADO organizations to share the private extension with
+#   vars.AZURE_WEBAPP_NAME        App Service name
+#   secrets.MARKETPLACE_PAT       Azure DevOps PAT with Marketplace (publish) scope, "All accessible organizations"
+#   secrets.AZURE_WEBAPP_PUBLISH_PROFILE   App Service publish profile XML
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Extension version (x.y.z)
+        required: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy-backend:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=dev
+      # App Service startup command: npm run start:azure  (applies db/schema.sql, then starts)
+      - uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
+
+  publish-extension:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+      - run: npm ci
+      - name: Build
+        run: NODE_ENV=production npm run build
+        env:
+          SIMPLAN_API_URL: ${{ vars.SIMPLAN_API_URL }}
+      - name: Version
+        id: v
+        run: |
+          V="${{ github.event.inputs.version }}"
+          [ -z "$V" ] && V="${GITHUB_REF_NAME#v}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Publish (private) and share
+        run: |
+          npx tfx extension publish --manifest-globs vss-extension.json --output-path out --no-prompt \
+            --publisher "${{ vars.ADO_PUBLISHER }}" \
+            --override "{\"version\": \"${{ steps.v.outputs.version }}\", \"public\": false}" \
+            --share-with ${{ vars.ADO_SHARE_WITH }} \
+            --token "${{ secrets.MARKETPLACE_PAT }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix-${{ steps.v.outputs.version }}
+          path: extension/out/*.vsix

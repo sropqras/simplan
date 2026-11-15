@@ -9,6 +9,7 @@ import { initPage, api, h, mount, showFatal } from '../common/backend';
 const root = document.getElementById('root');
 let ctx;
 let view;           // last GET/PUT response
+let live = null;    // { enabled, subscriptions }
 const edits = {};   // key -> new override value (null = remove override)
 
 const LABELS = {
@@ -22,6 +23,7 @@ const LABELS = {
   'ai.defaultType': 'AI: default ticket type',
   'ai.contextPaths': 'AI: repo paths it may read',
   'ai.requireApproval': 'AI: tickets need approval',
+  'ai.approvers': 'AI: who approves tickets',
   'tickets.branchPattern': 'Tickets: branch name pattern',
   'tickets.defaultTags': 'Tickets: default tags',
 };
@@ -117,6 +119,15 @@ function render() {
       ' in the project repo, then overrides saved on this page (highest priority).'),
     !canEdit ? h('div', { class: 'banner warn' }, 'Read-only: only project administrators can change these settings.') : null,
     h('h2', {}, 'Source'), repoInfo, errors,
+    h('h2', {}, 'Live board updates'),
+    h('div', { class: 'card' },
+      h('div', {}, live && live.enabled
+        ? 'On: Azure DevOps service hooks notify simplan when work items change anywhere, so boards update instantly.'
+        : 'Off: moves made in simplan are instant; edits made elsewhere in Azure DevOps show up within 30 seconds.'),
+      canEdit ? h('div', { class: 'row', style: 'margin-top:8px' },
+        live && live.enabled
+          ? h('button', { onclick: () => setLive(false) }, 'Turn off')
+          : h('button', { class: 'primary', onclick: () => setLive(true) }, 'Turn on (creates service hooks)')) : null),
     h('h2', {}, 'Settings'), fields,
     canEdit ? h('div', { class: 'actions row' },
       h('button', { class: 'primary', disabled: !dirty, onclick: save }, 'Save'),
@@ -142,6 +153,16 @@ async function save() {
   }
 }
 
+async function setLive(on) {
+  try {
+    live = await api(ctx, on ? 'POST' : 'DELETE', `/projects/${ctx.project.id}/live`);
+    render();
+    status('ok', on ? 'Live updates are on.' : 'Live updates are off.');
+  } catch (err) {
+    status('error', err.message);
+  }
+}
+
 async function commitToRepo() {
   if (!confirm(`Open a pull request in "${view.repo.name}" that writes the current settings to .simplan.yml?`)) return;
   try {
@@ -157,7 +178,10 @@ async function commitToRepo() {
   try {
     ctx = await initPage();
     if (!ctx.project) throw new Error('Open this page from a project.');
-    view = await api(ctx, 'GET', `/projects/${ctx.project.id}/config`);
+    [view, live] = await Promise.all([
+      api(ctx, 'GET', `/projects/${ctx.project.id}/config`),
+      api(ctx, 'GET', `/projects/${ctx.project.id}/live`).catch(() => null),
+    ]);
     render();
     await ctx.SDK.notifyLoadSucceeded();
   } catch (err) {

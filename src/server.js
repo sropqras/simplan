@@ -18,6 +18,7 @@ const eventsRoutes = require('./routes/events');
 const projectsRoutes = require('./routes/projects');
 const adoRoutes = require('./ado/routes');
 const { adoCors } = require('./ado/cors');
+const adoHooks = require('./ado/hooks');
 
 // --- Required environment ---
 // Two entry points, at least one must be configured:
@@ -47,6 +48,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 if (adoMode) {
   // Optional: serve the built extension pages from here (manifest baseUri dev mode).
   app.use('/ado/ext', express.static(path.join(__dirname, '..', 'extension', 'dist')));
+  app.use('/ado/hooks', adoHooks); // server-to-server (ADO service hooks), basic auth
   app.use('/ado', adoCors);
   app.use('/ado/api', adoRoutes);
   app.use('/ado', (req, res) => res.status(404).json({ error: 'Not found' }));
@@ -100,7 +102,7 @@ app.use((err, req, res, next) => {
 
 // --- HTTP + Socket.IO ---
 const server = http.createServer(app);
-initSocket(server, sessionMiddleware, passport);
+initSocket(server, sessionMiddleware, passport, { ado: adoMode });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

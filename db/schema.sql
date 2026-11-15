@@ -128,3 +128,36 @@ CREATE TABLE IF NOT EXISTS ado_projects (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (org, project_id)
 );
+
+-- Live board: ADO service-hook subscription ids we created for this project.
+ALTER TABLE ado_projects ADD COLUMN IF NOT EXISTS hook_subscriptions JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- Project chat (one room per ADO project). kind: user | ai | system
+CREATE TABLE IF NOT EXISTS ado_messages (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org          TEXT NOT NULL,
+  project_id   UUID NOT NULL,
+  author_id    TEXT,                       -- ADO identity id; NULL for ai/system
+  author_name  TEXT NOT NULL,
+  kind         TEXT NOT NULL DEFAULT 'user' CHECK (kind IN ('user', 'ai', 'system')),
+  body         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ado_messages_project ON ado_messages(org, project_id, created_at);
+
+-- AI-proposed tickets awaiting approval. Approved ones point at the created work item.
+CREATE TABLE IF NOT EXISTS ado_proposals (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org             TEXT NOT NULL,
+  project_id      UUID NOT NULL,
+  payload         JSONB NOT NULL,          -- { title, description, type, acceptanceCriteria[], suggestedFiles[], tags[] }
+  source_message_ids UUID[] NOT NULL DEFAULT '{}',
+  status          task_approval NOT NULL DEFAULT 'proposed',
+  work_item_id    INTEGER,
+  requested_by    TEXT,
+  decided_by      TEXT,
+  decided_at      TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ado_proposals_project ON ado_proposals(org, project_id, status);
+CREATE INDEX IF NOT EXISTS idx_ado_proposals_work_item ON ado_proposals(org, project_id, work_item_id);

@@ -26,6 +26,8 @@ const SCHEMA = {
   'ai.contextPaths':      { type: 'stringArray', default: ['README.md', 'docs/**'], maxItems: 50, maxLength: 256,
                             help: 'Glob allow-list of repo paths the AI may read. Nothing outside it is ever sent.' },
   'ai.requireApproval':   { type: 'boolean', default: true },
+  'ai.approvers':         { type: 'enum', values: ['admins', 'members'], default: 'admins',
+                            help: 'Who may approve AI-proposed tickets: project administrators only, or any project member.' },
   'tickets.branchPattern':{ type: 'string', default: 'feature/{id}-{slug}', maxLength: 128 },
   'tickets.defaultTags':  { type: 'stringArray', default: [], maxItems: 20, maxLength: 64 },
 };
