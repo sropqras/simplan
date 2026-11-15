@@ -1,0 +1,5 @@
+{
+  "id": "simplan-dev",
+  "name": "simplan (dev)",
+  "baseUri": "https://REPLACE-WITH-APP-SERVICE.azurewebsites.net/ado/ext"
+}

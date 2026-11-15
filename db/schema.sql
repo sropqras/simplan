@@ -109,3 +109,22 @@ CREATE TABLE IF NOT EXISTS "session" (
   CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE
 );
 CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+-- ============================================================
+--  Azure DevOps extension mode
+--  Tickets live in ADO as work items; we only keep per-project tool state.
+--  ADO ids: org = organization name (lower-cased), project_id = ADO project GUID,
+--  user ids are ADO identity GUIDs stored as TEXT (not our users table).
+-- ============================================================
+
+-- Per ADO project: tool-config overrides set in the simplan settings page.
+CREATE TABLE IF NOT EXISTS ado_projects (
+  org           TEXT NOT NULL,
+  project_id    UUID NOT NULL,
+  project_name  TEXT,
+  settings      JSONB NOT NULL DEFAULT '{}'::jsonb,   -- flat { "board.workItemType": "Bug", ... }
+  updated_by    TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (org, project_id)
+);

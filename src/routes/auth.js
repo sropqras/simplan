@@ -5,6 +5,12 @@ const passport = require('../config/passport');
 
 const router = express.Router();
 
+// Google mode may be disabled (Azure DevOps-only deployment).
+router.use('/google', (req, res, next) => {
+  if (passport._strategy('google')) return next();
+  return res.status(503).type('text').send('Google sign-in is not configured on this server.');
+});
+
 // Kick off Google OAuth.
 router.get(
   '/google',

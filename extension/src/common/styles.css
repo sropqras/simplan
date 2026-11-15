@@ -1,0 +1,54 @@
+/* Uses the CSS variables Azure DevOps injects via SDK applyTheme, with fallbacks. */
+:root {
+  --sp-bg: var(--background-color, #ffffff);
+  --sp-fg: var(--text-primary-color, rgba(0, 0, 0, .9));
+  --sp-muted: var(--text-secondary-color, rgba(0, 0, 0, .55));
+  --sp-border: var(--palette-black-alpha-10, rgba(0, 0, 0, .1));
+  --sp-accent: var(--communication-background, #0078d4);
+  --sp-accent-fg: var(--text-on-communication-background, #ffffff);
+  --sp-danger: var(--status-error-foreground, #a4262c);
+  --sp-danger-bg: var(--status-error-background, #fde7e9);
+  --sp-warn-bg: var(--status-warning-background, #fff4ce);
+  --sp-card: var(--callout-background-color, #ffffff);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 16px 20px 40px;
+  background: var(--sp-bg); color: var(--sp-fg);
+  font: 14px/1.45 "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+}
+h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+h2 { font-size: 15px; font-weight: 600; margin: 24px 0 8px; }
+.muted { color: var(--sp-muted); }
+.mono { font-family: Consolas, "SF Mono", Menlo, monospace; font-size: 12px; }
+.banner { padding: 10px 12px; border-radius: 4px; margin: 12px 0; }
+.banner.error { background: var(--sp-danger-bg); color: var(--sp-danger); }
+.banner.warn { background: var(--sp-warn-bg); }
+.banner.ok { background: rgba(16, 124, 16, .1); }
+.card { background: var(--sp-card); border: 1px solid var(--sp-border); border-radius: 4px; padding: 12px 14px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+button {
+  font: inherit; padding: 6px 14px; border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--sp-border); background: transparent; color: var(--sp-fg);
+}
+button.primary { background: var(--sp-accent); color: var(--sp-accent-fg); border-color: transparent; }
+button:disabled { opacity: .5; cursor: default; }
+button.link { border: 0; padding: 0 4px; color: var(--sp-accent); background: none; }
+input, select, textarea {
+  font: inherit; color: var(--sp-fg); background: var(--sp-bg);
+  border: 1px solid var(--sp-border); border-radius: 2px; padding: 5px 8px; width: 100%;
+}
+textarea { resize: vertical; }
+.field { display: grid; grid-template-columns: 220px 1fr 110px; gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--sp-border); align-items: start; }
+.field label { font-weight: 600; padding-top: 6px; overflow-wrap: anywhere; }
+.field .help { grid-column: 2; font-size: 12px; color: var(--sp-muted); }
+.field .source { padding-top: 6px; font-size: 12px; text-align: right; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; border: 1px solid var(--sp-border); }
+.badge.tool { background: var(--sp-accent); color: var(--sp-accent-fg); border-color: transparent; }
+.badge.repo { background: rgba(16, 124, 16, .15); }
+.field.dirty label::after { content: " •"; color: var(--sp-accent); }
+.actions { position: sticky; bottom: 0; background: var(--sp-bg); padding: 12px 0; border-top: 1px solid var(--sp-border); margin-top: 8px; }
+@media (max-width: 720px) {
+  .field { grid-template-columns: 1fr; }
+  .field .help, .field .source { grid-column: 1; text-align: left; }
+}

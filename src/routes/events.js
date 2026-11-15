@@ -3,11 +3,13 @@
 const express = require('express');
 const { query, pool } = require('../config/db');
 const { ensureApiAuth } = require('../middleware/auth');
+const { uuidParam } = require('../middleware/validate');
 
 const router = express.Router();
 
 // All event/project routes require a signed-in user.
 router.use(ensureApiAuth);
+router.param('eventId', uuidParam);
 
 // A user can see an event if they created it OR they are a member of any
 // project inside it. Returns the event row, or null if hidden / absent.
@@ -69,7 +71,7 @@ router.get('/', async (req, res, next) => {
 // ---------- Projects under an event ----------
 
 router.post('/:eventId/projects', async (req, res, next) => {
-  const client = await pool.connect();
+  let client;
   try {
     const event = await loadAccessibleEvent(req.params.eventId, req.user.id);
     if (!event) return res.status(404).json({ error: 'Event not found' });
@@ -79,6 +81,7 @@ router.post('/:eventId/projects', async (req, res, next) => {
     if (!name) return res.status(400).json({ error: 'name is required' });
 
     // Project + auto-owner membership must land together.
+    client = await pool.connect();
     await client.query('BEGIN');
     const { rows: projectRows } = await client.query(
       `INSERT INTO projects (event_id, name, description, created_by)
@@ -96,10 +99,10 @@ router.post('/:eventId/projects', async (req, res, next) => {
 
     res.status(201).json(project);
   } catch (err) {
-    await client.query('ROLLBACK').catch(() => {});
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 

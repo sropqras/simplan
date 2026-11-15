@@ -11,15 +11,32 @@ before doing anything else.
 | Phase | Scope | Status |
 |------|-------|--------|
 | 1 | Foundation, Postgres schema, Google OAuth, sessions, Socket.IO handshake | done |
-| 2 | Events, projects, memberships, owner/member roles + dashboard UI | done (unverified live) |
+| 2 | Events, projects, memberships, owner/member roles + dashboard UI | done — smoke-tested 2026-11-15 (real Postgres, OAuth faked via DB sessions) |
 | 3 | Live Kanban board (new → in_progress → handover → complete) | **next** |
 | 4 | Project chat rooms (real-time) | planned |
 | 5 | AI task triage (chat → proposed task → owner approves) | planned |
 | 6 | Notifications + user management | planned |
 
-**Important:** Phase 2 was implemented but never live-tested against Postgres / Google OAuth
-in the original session (Termux, no DB or OAuth creds). The first task on Mac is to actually
-run the stack end-to-end and fix any wiring bugs before starting Phase 3.
+**2026-11-15 (Termux):** Phase 1+2 smoke tests in section 1 were run against a real Postgres with
+Google login faked by inserting session rows: 36/36 pass. Fixed in the same pass: JSON error handler,
+malformed UUID -> 400 (`src/middleware/validate.js`), last owner can't be demoted (409), `pool.connect()`
+inside `try`. The real Google OAuth callback is still untested.
+
+### Azure DevOps track (parallel to Phases 3–6)
+
+simplan is also being built as a **private Azure DevOps extension** where tickets are ADO work items,
+AI runs on Azure AI Foundry, and config comes from `.simplan.yml` in the project's repo plus a settings page.
+**Read `docs/azure-devops.md` first** — it has the milestone table, auth model, config model and runbook.
+Milestones 1–2 (auth bridge + config) are done and tested against a fake ADO; milestone 3 (enhanced board) is next.
+Milestone 0 (Azure resources, Marketplace publisher) needs the account owner.
+
+ADO-mode rules (in addition to section 3):
+- Code lives in `src/ado/` (CommonJS) and `extension/` (browser ES modules bundled by esbuild — the only
+  place `import` is allowed; still no TypeScript).
+- `/ado/api/*` uses bearer tokens only (`requireAdoUser`), never the session/cookies. Call ADO **as the user**
+  via `req.ado.client` (`src/ado/client.js`); never store ADO tokens.
+- Project access = `requireAdoProject` (ADO decides). Admin-only writes = `requireAdoProjectAdmin`.
+- The server starts in Google mode, ADO mode, or both, depending on which secrets are set.
 
 ---
 
@@ -138,6 +155,22 @@ src/routes/events.js              /api/events*, /api/events/:id/projects     [Ph
 src/routes/projects.js            /api/projects/:id/members                  [Phase 2]
 
 src/realtime/socket.js            io server sharing the express session
+src/middleware/validate.js        isUuid / uuidParam (router.param)
+
+src/ado/appToken.js               verify SDK.getAppToken() JWT (HS256, ADO_EXTENSION_SECRET)
+src/ado/auth.js                   requireAdoUser / requireAdoProject / requireAdoProjectAdmin
+src/ado/client.js                 ADO REST client acting as the user (org validated, api 7.1)
+src/ado/config.js                 schema, .simplan.yml parse, merge default<-repo<-tool, toYaml
+src/ado/routes.js                 /ado/api/whoami, /projects/:id/config (GET/PUT), /config/commit
+src/ado/cors.js                   CORS for the extension iframe origin (/ado only)
+
+extension/vss-extension.json      manifest: Board hub + Project settings hub, scopes
+extension/build.js                esbuild -> dist/ (SIMPLAN_API_URL baked in)
+extension/src/{board,settings}/   pages; extension/src/common/backend.js = SDK init + api()
+
+test/*.test.js                    node:test; npm test (integration needs TEST_DATABASE_URL)
+test/helpers/fakeAdo.js           fake Azure DevOps REST server for tests
+docs/azure-devops.md              ADO extension runbook + milestone status
 
 public/css/styles.css             dark "ops command center" theme + Phase 2 styles
 public/js/dashboard.js            SPA-ish dashboard: events <-> event <-> project views
@@ -253,8 +286,8 @@ first; drag-and-drop can come in a polish pass.
 ## 8. Known caveats / unverified
 
 - `node_modules` is gitignored. First step on Mac is `npm install`.
-- Phase 2 was not live-tested in the original session (no DB / no OAuth in Termux). Run the
-  smoke tests in section 1 before extending.
+- Real Google OAuth sign-in has not been tested (smoke tests fake the session).
+- ADO extension not yet installed in a real org: see "Not verified yet" in `docs/azure-devops.md`.
 - The user's primary domain for production is `https://tasks.yourdomain.com` (placeholder
   in README) — swap when actually deploying.
 - The existing `~/repos/sropqras/` Termux folder is a parent dir with many unrelated repos;

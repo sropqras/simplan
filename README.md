@@ -4,14 +4,16 @@ A real-time event/task management platform. Each **event** contains **projects**
 
 **Stack:** Node + Express + Socket.IO + PostgreSQL + Passport (Google OAuth) + Postgres-backed sessions.
 
-> **This is Phase 1** — the foundation: server, full database schema, Google login, sessions, and an authenticated realtime handshake. Events, Kanban, chat, AI triage, and notifications come in later phases.
+> **Status:** Phases 1–2 done (Google login, events, projects, memberships). Kanban, chat, AI triage and
+> notifications come next. simplan can also run as a **private Azure DevOps extension** (work items,
+> Azure AI Foundry, repo-based config) — see [docs/azure-devops.md](docs/azure-devops.md).
 
 ---
 
 ## Phase roadmap
 
-1. **Foundation + Google auth** ← you are here
-2. Events, projects, memberships, board-owner role
+1. Foundation + Google auth — done
+2. Events, projects, memberships, board-owner role — done
 3. Live Kanban board (new → in progress → handover → complete)
 4. Project chat rooms
 5. AI task triage (chat → proposed task → owner approval)
@@ -21,7 +23,7 @@ A real-time event/task management platform. Each **event** contains **projects**
 
 ## Prerequisites
 
-- Node.js 18+ (you have 22)
+- Node.js 18+ (22 recommended)
 - A PostgreSQL database
 - Google OAuth credentials (steps below)
 
@@ -72,6 +74,13 @@ npm start        # or: npm run dev   (auto-restart on file changes)
 
 Open <http://localhost:3000>, click **Continue with Google**, and you'll land on the dashboard.
 
+## Tests
+
+```bash
+npm test                                               # unit tests
+TEST_DATABASE_URL=postgres://localhost/simplan_test npm test   # + integration (throwaway DB!)
+```
+
 ---
 
 ## Deploying to your IONOS VPS
@@ -117,10 +126,13 @@ realtime-tasks/
 │   ├── server.js            entry point (express + session + passport + socket.io)
 │   ├── config/db.js         postgres pool
 │   ├── config/passport.js   google oauth + user upsert
-│   ├── middleware/auth.js    route guards
-│   ├── routes/auth.js        /auth/google, callback, logout
-│   ├── routes/index.js       pages + /api/me
+│   ├── middleware/           auth.js (route guards), projectAccess.js, validate.js
+│   ├── routes/               auth, index (/api/me, /api/users), events, projects
+│   ├── ado/                  Azure DevOps extension backend (/ado/api)
 │   └── realtime/socket.js    socket.io wired to the session
+├── extension/               Azure DevOps extension front end (manifest, pages, build)
+├── test/                    node:test suites + fake Azure DevOps server
+├── docs/azure-devops.md     extension runbook
 ├── public/                  css + client js
 └── views/                   login.html, dashboard.html
 ```

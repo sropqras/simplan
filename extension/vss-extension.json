@@ -1,0 +1,41 @@
+{
+  "manifestVersion": 1,
+  "id": "simplan",
+  "publisher": "REPLACE-WITH-PUBLISHER-ID",
+  "version": "0.1.0",
+  "name": "simplan",
+  "description": "Live board, project chat and AI ticket creation (Azure AI Foundry) for Azure DevOps projects, configured from the project's repo.",
+  "public": false,
+  "categories": ["Azure Boards"],
+  "targets": [{ "id": "Microsoft.VisualStudio.Services" }],
+  "scopes": ["vso.work_write", "vso.code_write", "vso.project", "vso.hooks_write"],
+  "icons": { "default": "static/logo.png" },
+  "content": { "details": { "path": "README.md" } },
+  "files": [
+    { "path": "dist", "addressable": true },
+    { "path": "static", "addressable": true }
+  ],
+  "contributions": [
+    {
+      "id": "simplan-board-hub",
+      "type": "ms.vss-web.hub",
+      "description": "simplan board",
+      "targets": ["ms.vss-work-web.work-hub-group"],
+      "properties": {
+        "name": "simplan Board",
+        "uri": "dist/board/board.html",
+        "icon": { "light": "static/logo.png", "dark": "static/logo.png" }
+      }
+    },
+    {
+      "id": "simplan-settings-hub",
+      "type": "ms.vss-web.hub",
+      "description": "simplan project settings",
+      "targets": ["ms.vss-web.project-admin-hub-group"],
+      "properties": {
+        "name": "simplan",
+        "uri": "dist/settings/settings.html"
+      }
+    }
+  ]
+}

@@ -16,6 +16,8 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
+// Google mode is optional (an Azure DevOps-only deployment has no Google creds).
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 passport.use(
   new GoogleStrategy(
     {
@@ -54,5 +56,6 @@ passport.use(
     }
   )
 );
+}
 
 module.exports = passport;
